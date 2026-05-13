@@ -1,10 +1,12 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User, signOut as firebaseSignOut, signInAnonymously } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer, collection, addDoc, updateDoc, deleteDoc, getDocs, getDoc, query, where, orderBy, onSnapshot, Timestamp, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { initializeFirestore, doc, getDocFromServer, collection, addDoc, updateDoc, deleteDoc, getDocs, getDoc, query, where, orderBy, onSnapshot, Timestamp, serverTimestamp, writeBatch } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId); 
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+}, (firebaseConfig as any).firestoreDatabaseId); 
 export const auth = getAuth();
 export const googleProvider = new GoogleAuthProvider();
 export { signInWithPopup, signInAnonymously, onAuthStateChanged, firebaseSignOut as signOut, serverTimestamp, writeBatch, collection, query, where, orderBy, onSnapshot, getDocs, doc, updateDoc, deleteDoc, addDoc, getDoc };
