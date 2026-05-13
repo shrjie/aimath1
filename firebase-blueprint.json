@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "Exam": {
+      "title": "Exam",
+      "description": "儲存考卷基本資訊",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "考卷名稱" },
+        "description": { "type": "string", "description": "考卷描述" },
+        "teacherId": { "type": "string", "description": "老師 UID" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "teacherId"]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "考卷中的單一題目與評分準則",
+      "type": "object",
+      "properties": {
+        "examId": { "type": "string" },
+        "questionNumber": { "type": "integer" },
+        "content": { "type": "string", "description": "題目內容" },
+        "points": { "type": "number", "description": "滿分" },
+        "rubrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "desc": { "type": "string", "description": "評分項目說明" },
+              "points": { "type": "number", "description": "項目分數" }
+            }
+          }
+        },
+        "standardAnswer": { "type": "string", "description": "標準解答" },
+        "commonErrors": { "type": "array", "items": { "type": "string" }, "description": "常見錯誤類型" }
+      },
+      "required": ["examId", "content", "points"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "學生的單次作答結果",
+      "type": "object",
+      "properties": {
+        "examId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentId": { "type": "string" },
+        "status": { "enum": ["pending", "graded"] },
+        "totalScore": { "type": "number" },
+        "maxScore": { "type": "number" },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "gradedAt": { "type": "string", "format": "date-time" },
+        "feedback": { "type": "string" }
+      },
+      "required": ["examId", "studentName", "status"]
+    },
+    "GradingResult": {
+      "title": "GradingResult",
+      "description": "單一題目的批改明細",
+      "type": "object",
+      "properties": {
+        "submissionId": { "type": "string" },
+        "questionId": { "type": "string" },
+        "studentAnswer": { "type": "string" },
+        "studentAnswerImage": { "type": "string", "description": "Base64 圖片 (若有)" },
+        "score": { "type": "number" },
+        "feedback": { "type": "string" },
+        "analysis": {
+          "type": "object",
+          "properties": {
+            "pointsByRubric": { "type": "array", "items": { "type": "number" } },
+            "errorsFound": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      },
+      "required": ["submissionId", "questionId", "score"]
+    }
+  },
+  "firestore": {
+    "/exams/{examId}": { "schema": "Exam", "description": "考卷列表" },
+    "/exams/{examId}/questions/{questionId}": { "schema": "Question", "description": "題目列表" },
+    "/exams/{examId}/submissions/{submissionId}": { "schema": "Submission", "description": "作答紀錄" },
+    "/exams/{examId}/submissions/{submissionId}/results/{resultId}": { "schema": "GradingResult", "description": "詳細批改結果" }
+  }
+}
