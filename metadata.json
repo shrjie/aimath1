@@ -1,0 +1,8 @@
+{
+  "name": "AI智慧批改助手",
+  "description": "為老師設計的 AI 智慧批改系統。支援手寫答案辨識、準則對照批改、錯誤類型分析與自動化成績統計報告。",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}
