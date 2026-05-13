@@ -71,6 +71,7 @@ export async function recognizeHandwriting(base64Data: string, mimeType: string 
     // We need to ensure the base64 is just the data part
     const base64Content = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
     
+    console.log("Calling Groq OCR with model: llama-3.2-11b-vision-preview");
     const response = await groq.chat.completions.create({
       model: "llama-3.2-11b-vision-preview",
       messages: [
