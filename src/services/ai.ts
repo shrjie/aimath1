@@ -26,7 +26,7 @@ export async function testConnection(): Promise<{ success: boolean; message: str
   }
   try {
     const response = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      model: "llama-3.3-70b-versatile",
       messages: [{ role: "user", content: "hi" }],
       max_tokens: 5
     });
@@ -72,7 +72,7 @@ export async function recognizeHandwriting(base64Data: string, mimeType: string 
     const base64Content = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
     
     const response = await groq.chat.completions.create({
-      model: "llama-3.2-90b-vision-instant",
+      model: "llama-3.2-11b-vision-instant",
       messages: [
         {
           role: "user",
