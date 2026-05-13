@@ -72,7 +72,7 @@ export async function recognizeHandwriting(base64Data: string, mimeType: string 
     const base64Content = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
     
     const response = await groq.chat.completions.create({
-      model: "llama-3.2-11b-vision-instant",
+      model: "llama-3.2-11b-vision-preview",
       messages: [
         {
           role: "user",
