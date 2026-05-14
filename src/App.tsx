@@ -74,26 +74,52 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F0]">
+    <div className="min-h-screen bg-[#F5F5F0] flex flex-col">
       {/* Navigation Rail */}
-      <nav className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-[#141414]/5 z-50 px-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ClipboardCheck className="w-6 h-6 text-[#141414]" />
-          <span className="font-bold text-lg">AI智慧批改助手</span>
+      <nav className="sticky top-0 h-16 bg-white/80 backdrop-blur-md border-b border-[#141414]/5 z-50 px-4 sm:px-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-[#141414] rounded-xl flex items-center justify-center shadow-lg shadow-[#141414]/10">
+            <ClipboardCheck className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-bold text-base sm:text-lg leading-tight">AI智慧批改助手</span>
+            <span className="text-[10px] text-[#5A5A40] uppercase tracking-[0.2em]">Intelligent Grading</span>
+          </div>
+        </div>
+        <div className="hidden sm:flex items-center gap-4">
+          <div className="px-3 py-1 bg-[#E4E3E0] rounded-full text-[10px] font-bold text-[#5A5A40] uppercase tracking-wider">
+            Teacher Mode
+          </div>
         </div>
       </nav>
 
-      <main className="pt-20 pb-12 px-4 sm:px-6 max-w-7xl mx-auto">
+      <main className="flex-grow pt-8 pb-12 px-4 sm:px-6 max-w-7xl mx-auto w-full">
         <AnimatePresence mode="wait">
           <motion.div 
             key="teacher"
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           >
             <TeacherDashboard user={user} />
           </motion.div>
         </AnimatePresence>
       </main>
+
+      <footer className="py-8 px-6 border-t border-[#141414]/5 bg-white/50">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-2 text-[#5A5A40] text-sm font-medium">
+            <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+            系統服務正常運行中
+          </div>
+          <div className="text-[#5A5A40] text-sm">
+            程式設計：<span className="font-bold text-[#141414]">黃世杰</span>
+          </div>
+          <div className="text-[#5A5A40] text-[10px] tracking-widest uppercase opacity-40">
+            © 2024 AI Grading Assistant
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
