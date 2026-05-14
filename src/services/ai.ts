@@ -20,7 +20,7 @@ export async function testConnection(): Promise<{ success: boolean; message: str
   }
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: "hi",
       config: { maxOutputTokens: 5 }
     });
@@ -68,9 +68,9 @@ export async function recognizeHandwriting(base64Data: string, mimeType: string 
     // We need to ensure the base64 is just the data part
     const base64Content = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
     
-    console.log("Calling Gemini OCR with model: gemini-3-flash-preview");
+    console.log("Calling Gemini OCR with model: gemini-1.5-flash");
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: [
         {
           parts: [
@@ -127,7 +127,7 @@ ${studentAnswer}
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
+      model: "gemini-1.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
