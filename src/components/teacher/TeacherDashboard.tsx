@@ -8,7 +8,7 @@ import { formatDate } from '../../lib/utils';
 import ExamEditor from './ExamEditor';
 import SubmissionList from './SubmissionList';
 import StatisticsReport from '../report/StatisticsReport';
-import GroqSettings from './GroqSettings';
+import AISettings from './AISettings';
 
 interface Exam {
   id: string;
@@ -63,7 +63,7 @@ export default function TeacherDashboard({ user }: { user: User }) {
             <button 
               onClick={() => setShowSettings(true)}
               className="p-2 bg-white text-[#141414] border-2 border-[#141414] rounded-lg hover:bg-gray-50 transition-colors"
-              title="Groq API 設定"
+              title="AI 服務狀態"
             >
               <Settings className="w-5 h-5" />
             </button>
@@ -174,7 +174,7 @@ export default function TeacherDashboard({ user }: { user: User }) {
 
       <AnimatePresence>
         {showSettings && (
-          <GroqSettings onClose={() => setShowSettings(false)} />
+          <AISettings onClose={() => setShowSettings(false)} />
         )}
       </AnimatePresence>
     </div>
