@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, CheckCircle2, AlertCircle, Settings, RefreshCw, Loader2, Sparkles, ChevronRight } from 'lucide-react';
-import { testConnection } from '../../services/ai';
+import { X, CheckCircle2, AlertCircle, Settings, RefreshCw, Loader2, Sparkles, ChevronRight, Key } from 'lucide-react';
+import { getApiKey, setApiKey, testConnection } from '../../services/ai';
 import { cn } from '../../lib/utils';
 
 interface AISettingsProps {
@@ -9,10 +9,19 @@ interface AISettingsProps {
 }
 
 export default function AISettings({ onClose }: AISettingsProps) {
+  const [apiKey, setKey] = useState(getApiKey());
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  const handleSave = () => {
+    setApiKey(apiKey);
+    setTestResult({ success: true, message: "設定已儲存" });
+  };
+
   const handleTest = async () => {
+    // Make sure we use the current input for testing
+    setApiKey(apiKey);
+    
     setIsTesting(true);
     setTestResult(null);
     try {
@@ -53,32 +62,46 @@ export default function AISettings({ onClose }: AISettingsProps) {
 
         <div className="p-6 space-y-6">
           <div className="space-y-4">
-            <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex items-start gap-3">
-              <Sparkles className="w-5 h-5 text-blue-600 mt-1" />
-              <div>
-                <h3 className="font-bold text-blue-900 text-sm">已切換至 Gemini AI</h3>
-                <p className="text-xs text-blue-700 mt-1">
-                  目前的系統已切換至使用 Google Gemini API 進行 OCR 手寫辨識與智慧批改。
-                </p>
+            <div>
+              <label className="block text-sm font-bold text-[#141414] mb-2 flex items-center gap-2">
+                <Key className="w-4 h-4 text-gray-500" />
+                GEMINI_API_KEY
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setKey(e.target.value)}
+                  placeholder="輸入您的 Gemini API Key..."
+                  className="w-full h-12 px-4 bg-[#F5F5F0] border-2 border-[#141414] rounded-xl focus:ring-0 focus:outline-none focus:bg-white transition-all font-mono"
+                />
               </div>
+              <p className="mt-2 text-[10px] text-[#5A5A40]">
+                API Key 會儲存在瀏覽器的 Local Storage 中。如果環境變數有設定，優先使用環境變數。
+              </p>
             </div>
 
-            <p className="text-xs text-[#5A5A40]">
-              API Key 已由系統管理。您可以點擊下方按鈕測試目前的連線狀態。
-            </p>
-
-            <button
-              onClick={handleTest}
-              disabled={isTesting}
-              className="w-full h-12 bg-[#141414] text-white font-bold rounded-xl border-2 border-[#141414] hover:bg-black active:translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isTesting ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <RefreshCw className="w-5 h-5" />
-              )}
-              測試 Gemini 連線
-            </button>
+            <div className="flex gap-4">
+              <button
+                onClick={handleSave}
+                disabled={isTesting}
+                className="flex-1 h-12 bg-[#D1D1B8] text-[#141414] font-bold rounded-xl border-2 border-[#141414] hover:bg-[#C4C4A8] active:translate-y-0.5 transition-all"
+              >
+                儲存設定
+              </button>
+              <button
+                onClick={handleTest}
+                disabled={isTesting || !apiKey}
+                className="flex-1 h-12 bg-white text-[#141414] font-bold rounded-xl border-2 border-[#141414] hover:bg-gray-50 active:translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isTesting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-5 h-5" />
+                )}
+                測試連線
+              </button>
+            </div>
           </div>
 
           <AnimatePresence mode="wait">
@@ -108,9 +131,10 @@ export default function AISettings({ onClose }: AISettingsProps) {
         </div>
 
         <div className="bg-[#F5F5F0] p-6 border-t-2 border-[#141414]/10">
-          <h3 className="text-sm font-bold text-[#141414] mb-2">如何設定 API Key？</h3>
+          <h3 className="text-sm font-bold text-[#141414] mb-2">如何取得 API Key？</h3>
           <p className="text-xs text-[#5A5A40] leading-relaxed">
-            請點擊右邊選單的 <span className="font-bold flex inline-flex items-center gap-1">Settings <ChevronRight className="w-3 h-3" /> Secrets</span>，在 <b>GEMINI_API_KEY</b> 中輸入您的 API 金鑰。
+            請前往 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="referrer" className="text-blue-600 font-bold hover:underline">Google AI Studio</a> 建立帳號並產生 API Key。<br />
+            Gemini 目前提供免費額度供測試與教學使用。
           </p>
         </div>
       </motion.div>
