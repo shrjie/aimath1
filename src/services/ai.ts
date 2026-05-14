@@ -1,8 +1,23 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let currentApiKey = localStorage.getItem('gemini_api_key') || process.env.GEMINI_API_KEY || '';
+
+let ai = new GoogleGenAI({ apiKey: currentApiKey });
+
+export function setApiKey(key: string) {
+  currentApiKey = key;
+  localStorage.setItem('gemini_api_key', key);
+  ai = new GoogleGenAI({ apiKey: key });
+}
+
+export function getApiKey() {
+  return currentApiKey;
+}
 
 export async function testConnection(): Promise<{ success: boolean; message: string }> {
+  if (!currentApiKey) {
+    return { success: false, message: "尚未設定 API Key" };
+  }
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -46,6 +61,9 @@ export interface GradingAnalysis {
 }
 
 export async function recognizeHandwriting(base64Data: string, mimeType: string = "image/jpeg"): Promise<string> {
+  if (!currentApiKey) {
+    throw new Error("尚未設定 Gemini API Key，請前往設定頁面輸入。");
+  }
   try {
     // We need to ensure the base64 is just the data part
     const base64Content = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
@@ -83,6 +101,9 @@ export async function gradeAnswer(
   question: QuestionData,
   studentAnswer: string
 ): Promise<GradingAnalysis> {
+  if (!currentApiKey) {
+    throw new Error("尚未設定 Gemini API Key，請前往設定頁面輸入。");
+  }
   const prompt = `
 你是一位專業的老師。請根據以下評分準則與標準答案，批改學生的答案。
 
