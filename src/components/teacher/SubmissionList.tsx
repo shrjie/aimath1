@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db, handleFirestoreError, OperationType, writeBatch } from '../../lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, getDocs, doc, updateDoc, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, Clock, ChevronDown, ChevronUp, AlertCircle, Sparkles, User, FileText, Trash2, PlusCircle } from 'lucide-react';
+import { CheckCircle2, Clock, ChevronDown, ChevronUp, AlertCircle, Sparkles, User, FileText, Trash2, PlusCircle, Users } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
 import { gradeAnswer, QuestionData } from '../../services/ai';
 import AddSubmission from './AddSubmission';
@@ -161,137 +161,141 @@ export default function SubmissionList({ examId, teacherView, user }: { examId: 
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-sm font-bold text-[#5A5A40] uppercase tracking-widest">作答列表 ({submissions.length})</h3>
-        <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-[#F5F5F0] rounded-lg flex items-center justify-center border-2 border-[#141414]/5">
+            <Users className="w-4 h-4 text-[#141414]" />
+          </div>
+          <h3 className="text-sm font-black text-[#141414] uppercase tracking-widest">作答列表 ({submissions.length})</h3>
+        </div>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {teacherView && (
             <button 
               onClick={() => setIsAdding(true)}
-              className="text-xs font-bold bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-all shadow-sm"
+              className="flex-grow sm:flex-grow-0 text-[10px] sm:text-xs font-black bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-500/20"
             >
-              <PlusCircle className="w-3.5 h-3.5" /> 代上傳學生作答
+              <PlusCircle className="w-3.5 h-3.5" /> 代上傳作答
             </button>
           )}
           {teacherView && submissions.length > 0 && (
             <button 
               onClick={handleClearAll}
-              className="text-xs font-bold text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition-all"
+              className="text-[10px] sm:text-xs font-black text-red-500 hover:bg-red-50 px-3 py-2.5 rounded-xl transition-all border-2 border-transparent hover:border-red-100"
             >
-              清空所有作答
+              清空
             </button>
           )}
           {teacherView && submissions.some(s => s.status === 'pending') && (
             <button 
               onClick={handleGradeAll}
-              className="text-xs font-bold bg-[#141414] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-black transition-all"
+              className={`flex-grow sm:flex-grow-0 text-[10px] sm:text-xs font-black px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg ${
+                gradingId === 'all' 
+                  ? 'bg-gray-400 cursor-not-allowed text-white' 
+                  : 'bg-[#141414] text-white hover:bg-black active:scale-95'
+              }`}
+              disabled={gradingId === 'all'}
             >
-              <Sparkles className="w-3.5 h-3.5" /> 一鍵 AI 批改
+              {gradingId === 'all' ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              一鍵 AI 批改
             </button>
           )}
         </div>
       </div>
 
-      <AnimatePresence>
-        {isAdding && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-[#141414]/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className="w-full max-w-3xl"
-            >
-              <AddSubmission 
-                user={user} 
-                examId={examId} 
-                onCancel={() => setIsAdding(false)} 
-                onSuccess={() => { setIsAdding(false); alert('已成功新增一筆作答！'); }} 
-              />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="space-y-3">
-        {submissions.map(sub => (
-          <div key={sub.id} className="bg-[#F5F5F0]/50 rounded-2xl border border-[#141414]/5 overflow-hidden">
-            <div 
-              onClick={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
-              className="p-4 flex items-center justify-between cursor-pointer hover:bg-white transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-[#141414]/5 text-[#5A5A40]">
-                  <User className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-[#141414]">{sub.studentName}</h4>
-                  <p className="text-[10px] text-[#5A5A40] uppercase tracking-wider">{formatDate(sub.submittedAt)}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-6">
-                {teacherView && (
-                  <button 
-                    onClick={(e) => handleDeleteSubmission(sub.id, e)}
-                    className="p-2 text-[#5A5A40]/30 hover:text-red-500 transition-colors"
-                    title="刪除作答"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-                <div className="flex flex-col items-end">
-                  {sub.status === 'graded' ? (
-                    <>
-                      <div className="flex items-center gap-1.5 text-green-600 font-bold">
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>{sub.totalScore} / {sub.maxScore}</span>
-                      </div>
-                      <span className="text-[10px] uppercase font-bold text-[#5A5A40]/40">已批改</span>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-1.5 text-orange-500 font-bold">
-                        <Clock className="w-4 h-4" />
-                        <span>待批改</span>
-                      </div>
-                      {gradingId === sub.id && <span className="text-[10px] text-blue-500 animate-pulse font-bold">批改中...</span>}
-                    </>
-                  )}
-                </div>
-                {expandedId === sub.id ? <ChevronUp className="w-5 h-5 text-[#5A5A40]" /> : <ChevronDown className="w-5 h-5 text-[#5A5A40]" />}
-              </div>
-            </div>
-
-            <AnimatePresence>
-              {expandedId === sub.id && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="px-4 pb-4 border-t border-[#141414]/5"
-                >
-                  <div className="py-4 space-y-4">
-                     <ResultDetail examId={examId} submissionId={sub.id} />
-                     
-                     {teacherView && sub.status === 'pending' && (
-                       <button 
-                        disabled={gradingId === sub.id}
-                        onClick={() => autoGradeSubmission(sub)}
-                        className="w-full bg-[#141414] text-white py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-black transition-all"
-                       >
-                         {gradingId === sub.id ? <Clock className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                         開始 AI 批改
-                       </button>
-                     )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+      <div className="grid grid-cols-1 gap-4">
+        {submissions.length === 0 ? (
+          <div className="text-center py-16 bg-[#F5F5F0]/30 rounded-[2rem] border-2 border-dashed border-[#141414]/5">
+            <FileText className="w-12 h-12 text-[#5A5A40]/20 mx-auto mb-4" />
+            <p className="text-sm text-[#5A5A40] font-medium">目前尚無作答資料</p>
           </div>
-        ))}
+        ) : (
+          submissions.map(sub => (
+            <div key={sub.id} className={`group bg-white rounded-3xl border-2 transition-all duration-300 overflow-hidden ${
+              expandedId === sub.id 
+                ? "border-[#141414] shadow-xl" 
+                : "border-[#141414]/5 hover:border-[#141414]/20 hover:shadow-md"
+            }`}>
+              <div 
+                onClick={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
+                className="p-4 sm:p-5 flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-[#F5F5F0] rounded-2xl flex items-center justify-center border-2 border-[#141414]/5 group-hover:bg-white transition-colors">
+                    <User className="w-6 h-6 text-[#141414]/40" />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-[#141414] text-lg leading-tight">{sub.studentName}</h4>
+                    <div className="flex items-center gap-2 mt-1">
+                       <Clock className="w-3 h-3 text-[#5A5A40]/40" />
+                       <p className="text-[10px] text-[#5A5A40] font-bold uppercase tracking-widest">{formatDate(sub.submittedAt)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 sm:gap-6">
+                  {teacherView && (
+                    <button 
+                      onClick={(e) => handleDeleteSubmission(sub.id, e)}
+                      className="hidden sm:block p-2.5 text-[#5A5A40]/30 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                      title="刪除作答"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  <div className="flex flex-col items-end min-w-[80px]">
+                    {sub.status === 'graded' ? (
+                      <div className="flex flex-col items-end">
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-600 rounded-full text-sm font-black border border-green-100">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>{sub.totalScore} / {sub.maxScore}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-end">
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-orange-50 text-orange-500 rounded-full text-[10px] font-black border border-orange-100 uppercase tracking-wider">
+                          <Clock className="w-3 h-3" />
+                          <span>待批改</span>
+                        </div>
+                        {gradingId === sub.id && <span className="text-[10px] text-blue-500 animate-pulse font-bold mt-1">AI 批改中...</span>}
+                      </div>
+                    )}
+                  </div>
+                  <div className={`p-1 rounded-lg transition-transform duration-300 ${expandedId === sub.id ? 'rotate-180 bg-[#141414] text-white' : 'text-[#5A5A40]'}`}>
+                    <ChevronDown className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+
+              <AnimatePresence>
+                {expandedId === sub.id && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-5 pb-6 border-t-2 border-[#141414]/5 pt-6 bg-[#F5F5F0]/30">
+                      <div className="space-y-6">
+                         <ResultDetail examId={examId} submissionId={sub.id} />
+                         
+                         {teacherView && sub.status === 'pending' && (
+                           <button 
+                            disabled={gradingId === sub.id}
+                            onClick={() => autoGradeSubmission(sub)}
+                            className="w-full bg-[#141414] text-white py-4 rounded-2xl text-sm font-black flex items-center justify-center gap-3 hover:bg-black active:scale-[0.98] transition-all shadow-xl shadow-[#141414]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                           >
+                             {gradingId === sub.id ? <Clock className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                             啟動 AI 智慧批改引擎
+                           </button>
+                         )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -317,35 +321,64 @@ function ResultDetail({ examId, submissionId }: { examId: string, submissionId: 
       {results.map(res => {
         const q = questions.find(q => q.id === res.questionId);
         return (
-          <div key={res.id} className="bg-white p-4 rounded-xl border border-[#141414]/5">
-            <div className="flex justify-between items-start mb-3">
-              <span className="text-[10px] font-bold bg-[#141414] text-white px-2 py-0.5 rounded">第 {q?.questionNumber} 題</span>
+          <div key={res.id} className="bg-white rounded-2xl border border-[#141414]/5 shadow-sm overflow-hidden flex flex-col">
+            <div className="px-4 py-3 bg-[#F5F5F0]/50 border-b border-[#141414]/5 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 bg-[#141414] text-white text-[10px] font-black rounded-lg flex items-center justify-center">
+                  {q?.questionNumber}
+                </span>
+                <span className="text-xs font-black text-[#141414]">題目內容</span>
+              </div>
               {res.score !== undefined && (
-                <span className="text-sm font-bold text-[#141414]">{res.score} / {q?.points} 分</span>
+                <div className="text-xs font-black px-2 py-1 bg-white rounded-lg border border-[#141414]/10">
+                  <span className={res.score === q?.points ? "text-green-600" : "text-orange-500"}>
+                    {res.score}
+                  </span>
+                  <span className="text-[#5A5A40]/40 mx-1">/</span>
+                  <span>{q?.points}</span>
+                </div>
               )}
             </div>
-            <p className="text-xs text-[#5A5A40] mb-2 font-medium">{q?.content}</p>
-            <div className="bg-[#F5F5F0] p-3 rounded-lg mb-3">
-              <p className="text-[10px] uppercase font-bold text-[#5A5A40] mb-1">學生答案：</p>
-              <p className="text-sm">{res.studentAnswer}</p>
-            </div>
-            {res.feedback && (
-              <div className="space-y-2 border-t border-[#141414]/5 pt-3">
-                 <p className="text-[10px] uppercase font-bold text-blue-600 mb-1 flex items-center gap-1">
-                   <Sparkles className="w-3 h-3" /> AI 批改回饋：
-                 </p>
-                 <p className="text-xs text-[#141414] italic leading-relaxed">"{res.feedback}"</p>
-                 {res.analysis?.errorsFound?.length > 0 && (
-                   <div className="flex flex-wrap gap-2 mt-2">
-                     {res.analysis.errorsFound.map((err: string, i: number) => (
-                       <span key={i} className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">
-                         {err}
-                       </span>
-                     ))}
-                   </div>
-                 )}
+            
+            <div className="p-4 space-y-4">
+              <p className="text-sm text-[#141414] font-medium leading-relaxed">{q?.content}</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-black text-[#5A5A40] tracking-widest block">學生回答</label>
+                  <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 min-h-[60px]">
+                    <p className="text-sm text-blue-900 font-medium">{res.studentAnswer}</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-black text-[#5A5A40] tracking-widest block">參考答案</label>
+                  <div className="p-3 bg-green-50/50 rounded-xl border border-green-100 min-h-[60px]">
+                    <p className="text-sm text-green-900 font-medium">{q?.answer}</p>
+                  </div>
+                </div>
               </div>
-            )}
+
+              {res.feedback && (
+                <div className="pt-4 border-t border-[#141414]/5">
+                   <div className="bg-white rounded-xl border-2 border-[#141414]/5 p-4 relative">
+                      <div className="absolute top-0 left-6 -mt-2.5 px-2 bg-white flex items-center gap-1.5">
+                        <Sparkles className="w-3 h-3 text-blue-500" />
+                        <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">AI 智慧分析</span>
+                      </div>
+                      <p className="text-sm text-[#141414] italic leading-relaxed mt-2 whitespace-pre-wrap">{res.feedback}</p>
+                      {res.analysis?.errorsFound?.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-4">
+                          {res.analysis.errorsFound.map((err: string, i: number) => (
+                            <span key={i} className="text-[9px] bg-red-100 text-red-600 px-3 py-1 rounded-full font-black uppercase tracking-wider">
+                              {err}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                   </div>
+                </div>
+              )}
+            </div>
           </div>
         );
       })}
