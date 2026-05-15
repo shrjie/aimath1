@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, CheckCircle2, AlertCircle, Settings, RefreshCw, Loader2, Sparkles, ChevronRight, Key } from 'lucide-react';
-import { getApiKey, setApiKey, testConnection } from '../../services/ai';
+import { X, CheckCircle2, AlertCircle, Settings, RefreshCw, Loader2, Sparkles, ChevronRight, Key, Cpu } from 'lucide-react';
+import { getApiKeys, setApiKey, testConnection, getProvider, setProvider, AIProvider } from '../../services/ai';
 import { cn } from '../../lib/utils';
 
 interface AISettingsProps {
@@ -9,23 +9,31 @@ interface AISettingsProps {
 }
 
 export default function AISettings({ onClose }: AISettingsProps) {
-  const [apiKey, setKey] = useState(getApiKey());
+  const keys = getApiKeys();
+  const [geminiKey, setGeminiKey] = useState(keys.gemini);
+  const [groqKey, setGroqKey] = useState(keys.groq);
+  const [provider, setLocalProvider] = useState<AIProvider>(getProvider());
+  
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const handleSave = () => {
-    setApiKey(apiKey);
+    setApiKey(geminiKey, 'gemini');
+    setApiKey(groqKey, 'groq');
+    setProvider(provider);
     setTestResult({ success: true, message: "設定已儲存" });
   };
 
   const handleTest = async () => {
-    // Make sure we use the current input for testing
-    setApiKey(apiKey);
+    // Save first to ensure we test current input
+    setApiKey(geminiKey, 'gemini');
+    setApiKey(groqKey, 'groq');
+    setProvider(provider);
     
     setIsTesting(true);
     setTestResult(null);
     try {
-      const result = await testConnection();
+      const result = await testConnection(provider);
       setTestResult(result);
     } catch (err: any) {
       setTestResult({ success: false, message: err.message || '測試失敗' });
@@ -50,7 +58,7 @@ export default function AISettings({ onClose }: AISettingsProps) {
         <div className="bg-[#141414] px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 text-white">
             <Settings className="w-5 h-5 text-blue-400" />
-            <h2 className="font-bold">AI 服務設定</h2>
+            <h2 className="font-bold">AI 服務狀態與替代方案</h2>
           </div>
           <button 
             onClick={onClose}
@@ -61,45 +69,90 @@ export default function AISettings({ onClose }: AISettingsProps) {
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Provider Selection */}
+          <div className="space-y-3">
+             <label className="text-[10px] font-black uppercase tracking-widest text-[#5A5A40] flex items-center gap-2">
+               <Cpu className="w-3.5 h-3.5" /> 指定主要批改引擎
+             </label>
+             <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => setLocalProvider('gemini')}
+                  className={cn(
+                    "p-3 rounded-xl border-2 transition-all text-xs font-bold flex flex-col items-center gap-1",
+                    provider === 'gemini' 
+                      ? "bg-[#141414] text-white border-[#141414] shadow-lg" 
+                      : "bg-white border-[#141414]/10 text-[#5A5A40] hover:border-[#141414]/30"
+                  )}
+                >
+                  <span>Gemini (Google)</span>
+                  <span className="text-[8px] opacity-70">支援 OCR 與 批改</span>
+                </button>
+                <button 
+                  onClick={() => setLocalProvider('groq')}
+                  className={cn(
+                    "p-3 rounded-xl border-2 transition-all text-xs font-bold flex flex-col items-center gap-1",
+                    provider === 'groq' 
+                      ? "bg-[#141414] text-white border-[#141414] shadow-lg" 
+                      : "bg-white border-[#141414]/10 text-[#5A5A40] hover:border-[#141414]/30"
+                  )}
+                >
+                  <span>Groq (Llama 3)</span>
+                  <span className="text-[8px] opacity-70">速度極快 專注批改</span>
+                </button>
+             </div>
+          </div>
+
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-bold text-[#141414] mb-2 flex items-center gap-2">
-                <Key className="w-4 h-4 text-gray-500" />
-                GEMINI_API_KEY
+              <label className="block text-[10px] font-black text-[#5A5A40] mb-2 uppercase tracking-widest flex items-center gap-2">
+                <Key className="w-3.5 h-3.5 text-gray-500" />
+                Gemini API Key
               </label>
-              <div className="relative">
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setKey(e.target.value)}
-                  placeholder="輸入您的 Gemini API Key..."
-                  className="w-full h-12 px-4 bg-[#F5F5F0] border-2 border-[#141414] rounded-xl focus:ring-0 focus:outline-none focus:bg-white transition-all font-mono"
-                />
-              </div>
-              <p className="mt-2 text-[10px] text-[#5A5A40]">
-                API Key 會儲存在瀏覽器的 Local Storage 中。如果環境變數有設定，優先使用環境變數。
+              <input
+                type="password"
+                value={geminiKey}
+                onChange={(e) => setGeminiKey(e.target.value)}
+                placeholder="輸入您的 Gemini API Key..."
+                className="w-full h-10 px-4 bg-[#F5F5F0] border-2 border-[#141414]/10 rounded-xl focus:border-[#141414] focus:ring-0 focus:outline-none transition-all font-mono text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-[#5A5A40] mb-2 uppercase tracking-widest flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                Groq API Key (免費替代方案)
+              </label>
+              <input
+                type="password"
+                value={groqKey}
+                onChange={(e) => setGroqKey(e.target.value)}
+                placeholder="輸入您的 Groq API Key..."
+                className="w-full h-10 px-4 bg-[#F5F5F0] border-2 border-[#141414]/10 rounded-xl focus:border-[#141414] focus:ring-0 focus:outline-none transition-all font-mono text-xs"
+              />
+              <p className="mt-1 text-[9px] text-blue-500 italic">
+                Groq 的 Llama 3-70B 速度極快且有慷慨的免費額度，適合處理大量批改。
               </p>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-3 pt-2">
               <button
                 onClick={handleSave}
                 disabled={isTesting}
-                className="flex-1 h-12 bg-[#D1D1B8] text-[#141414] font-bold rounded-xl border-2 border-[#141414] hover:bg-[#C4C4A8] active:translate-y-0.5 transition-all"
+                className="flex-1 h-11 bg-[#141414] text-white font-bold rounded-xl hover:bg-black active:scale-95 transition-all text-xs"
               >
                 儲存設定
               </button>
               <button
                 onClick={handleTest}
-                disabled={isTesting || !apiKey}
-                className="flex-1 h-12 bg-white text-[#141414] font-bold rounded-xl border-2 border-[#141414] hover:bg-gray-50 active:translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isTesting || (provider === 'gemini' ? !geminiKey : !groqKey)}
+                className="flex-1 h-11 bg-white text-[#141414] font-bold rounded-xl border-2 border-[#141414] hover:bg-gray-50 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
               >
                 {isTesting ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <RefreshCw className="w-5 h-5" />
+                  <RefreshCw className="w-4 h-4" />
                 )}
-                測試連線
+                測試 {provider.toUpperCase()} 連線
               </button>
             </div>
           </div>
@@ -111,18 +164,18 @@ export default function AISettings({ onClose }: AISettingsProps) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 className={cn(
-                  "p-4 rounded-xl border-2 flex gap-3 items-start",
+                  "p-3 rounded-xl border flex gap-3 items-start",
                   testResult.success 
                     ? "bg-green-50 border-green-200 text-green-700" 
                     : "bg-red-50 border-red-200 text-red-700"
                 )}
               >
                 {testResult.success ? (
-                  <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                 ) : (
-                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 )}
-                <div className="text-sm font-medium">
+                <div className="text-[11px] font-bold uppercase tracking-tight">
                   {testResult.message}
                 </div>
               </motion.div>
@@ -130,12 +183,20 @@ export default function AISettings({ onClose }: AISettingsProps) {
           </AnimatePresence>
         </div>
 
-        <div className="bg-[#F5F5F0] p-6 border-t-2 border-[#141414]/10">
-          <h3 className="text-sm font-bold text-[#141414] mb-2">如何取得 API Key？</h3>
-          <p className="text-xs text-[#5A5A40] leading-relaxed">
-            請前往 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="referrer" className="text-blue-600 font-bold hover:underline">Google AI Studio</a> 建立帳號並產生 API Key。<br />
-            Gemini 目前提供免費額度供測試與教學使用。
-          </p>
+        <div className="bg-[#F5F5F0] p-6 border-t-2 border-[#141414]/5 space-y-4">
+          <div>
+             <h3 className="text-[10px] font-black text-[#141414] uppercase tracking-widest mb-1.5 flex items-center gap-2">
+               <ChevronRight className="w-3 h-3" /> 如何取得 API Keys？
+             </h3>
+             <ul className="text-[10px] text-[#5A5A40] space-y-1.5 list-disc pl-4">
+               <li>
+                 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="referrer" className="text-blue-600 font-bold hover:underline">Google AI Studio</a>: 提供 Gemini 模型。
+               </li>
+               <li>
+                 <a href="https://console.groq.com/keys" target="_blank" rel="referrer" className="text-orange-600 font-bold hover:underline">Groq Console</a>: 提供快速的免費 Llama 3 服務。
+               </li>
+             </ul>
+          </div>
         </div>
       </motion.div>
     </motion.div>
