@@ -155,15 +155,19 @@ export async function gradeBatch(
 
   const prompt = `
 你是一位專業的老師。請針對以下多個題目，批改學生的答案。
-對於每個題目，請根據提供的評分準則 (Rubrics) 給分，並提供回饋。
+對於每個題目，請根據提供的評分準則 (Rubrics) 給分，並提供詳細的分析回饋。
 
-請務必以 JSON 陣列格式回覆，每個元素對應一個題目的批改結果。
+### 要求：
+1. **輸出格式**：必須輸出一個 JSON 陣列 (Array)，每個元素代表一題的批改結果。不需要包裝在 rootkey 中。
+2. **ID 匹配**：每個結果的 "questionId" 必須完全符合我提供的 UUID。
+3. **給分邏輯**：嚴格遵守評分準則。如果學生部分答對，請按比例給分。
+4. **分析回饋**：請針對學生的錯誤提供建設性的「分析」，而不僅僅是標準答案。使用繁體中文。
 
 【題目與答案列表】
 ${questions.map((q, idx) => {
   const studentAns = studentAnswers.find(a => a.questionId === q.id)?.answer || "未作答";
   return `
---- 題目 ${idx + 1} (ID: ${q.id}) ---
+--- 題目 ${idx + 1} (UUID: ${q.id}) ---
 內容：${q.content}
 標準答案：${q.standardAnswer}
 總分：${q.points}
@@ -172,15 +176,15 @@ ${questions.map((q, idx) => {
 `;
 }).join('\n')}
 
-回覆格式 (JSON 陣列):
+回覆格式 (JSON Array):
 [
   {
-    "questionId": "題目ID",
+    "questionId": "UUID",
     "items": [
-      { "rubricDesc": "準則描述", "score": 分數, "feedback": "具體回饋" }
+      { "rubricDesc": "準則描述", "score": 分數, "feedback": "針對該準則的具體分析" }
     ],
     "totalScore": 該題得分,
-    "genericFeedback": "整題綜合評語",
+    "genericFeedback": "整題綜合分析與指導建議",
     "errorTypes": ["錯誤類型1", "錯誤類型2"]
   }
 ]
@@ -225,14 +229,12 @@ ${questions.map((q, idx) => {
       const completion = await groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
         messages: [
-          { role: "system", content: "You are a professional teacher grading exams. Always output valid JSON array only." },
+          { role: "system", content: "You are a professional teacher grading exams. Always output a JSON array of grading results." },
           { role: "user", content: prompt }
         ],
         response_format: { type: "json_object" }
       });
       const content = completion.choices[0]?.message?.content || "[]";
-      // Groq json_object might wrap it in a root key sometimes if not careful, but here we asked for array.
-      // If it's a json_object, it must be an object. Llama-3-70b is usually smart.
       const parsed = JSON.parse(content);
       return Array.isArray(parsed) ? parsed : (parsed.results || parsed.grading || []);
     }
