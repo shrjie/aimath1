@@ -54,7 +54,7 @@ export async function testConnection(provider: AIProvider = currentProvider): Pr
     } else {
       const chatCompletion = await groq.chat.completions.create({
         messages: [{ role: "user", content: "hi" }],
-        model: "llama3-8b-8192",
+        model: "llama-3.1-8b-instant",
         max_tokens: 5
       });
       return chatCompletion.choices[0] ? { success: true, message: "Groq 連線成功！" } : { success: false, message: "連線異常" };
@@ -194,7 +194,7 @@ ${questions.map((q, idx) => {
       return JSON.parse(response.text || "[]");
     } else {
       const completion = await groq.chat.completions.create({
-        model: "llama3-70b-8192",
+        model: "llama-3.3-70b-versatile",
         messages: [
           { role: "system", content: "You are a professional teacher grading exams. Always output valid JSON array only." },
           { role: "user", content: prompt }
