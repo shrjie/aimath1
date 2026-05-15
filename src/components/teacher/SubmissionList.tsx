@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { db, handleFirestoreError, OperationType, writeBatch } from '../../lib/firebase';
-import { collection, query, where, orderBy, onSnapshot, getDocs, doc, updateDoc, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, Clock, ChevronDown, ChevronUp, AlertCircle, Sparkles, User, FileText, Trash2, PlusCircle, Users } from 'lucide-react';
+import { CheckCircle2, Clock, ChevronDown, AlertCircle, Sparkles, User, FileText, Trash2, PlusCircle, Users } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
-import { gradeAnswer, QuestionData } from '../../services/ai';
+import { gradeBatch, QuestionData } from '../../services/ai';
 import AddSubmission from './AddSubmission';
+
+// Helper to delay execution
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 interface Submission {
   id: string;
@@ -43,7 +46,6 @@ export default function SubmissionList({ examId, teacherView, user }: { examId: 
     e.stopPropagation();
     if (!confirm('確定要刪除這筆學生的作答嗎？此動作無法復原。')) return;
     try {
-      // Also delete subcollection results for cleanliness
       const rSnap = await getDocs(collection(db, 'exams', examId, 'submissions', subId, 'results'));
       const batchInstance = writeBatch(db);
       rSnap.docs.forEach(d => batchInstance.delete(d.ref));
@@ -60,24 +62,14 @@ export default function SubmissionList({ examId, teacherView, user }: { examId: 
     if (!confirm(`確定要刪除考卷下「所有」(${submissions.length}筆) 學生的作答嗎？此動作無法復原。`)) return;
     
     try {
-      setGradingId('all'); // Show a generic loading state
-      
-      // Deleting subcollections in bulk is hard in client, so we do it per submission
-      // To avoid "batch is not defined" or other scope issues, we'll be very explicit
+      setGradingId('all');
       for (const sub of submissions) {
-        const subId = sub.id;
-        // Delete results first
-        const resultsRef = collection(db, 'exams', examId, 'submissions', subId, 'results');
-        const rSnap = await getDocs(resultsRef);
-        
+        const rSnap = await getDocs(collection(db, 'exams', examId, 'submissions', sub.id, 'results'));
         const batchInstance = writeBatch(db);
         rSnap.docs.forEach(d => batchInstance.delete(d.ref));
-        
-        // Delete submission itself
-        batchInstance.delete(doc(db, 'exams', examId, 'submissions', subId));
+        batchInstance.delete(doc(db, 'exams', examId, 'submissions', sub.id));
         await batchInstance.commit();
       }
-      
       alert('已成功清空所有作答。');
     } catch (err: any) {
       console.error("Clear all failed", err);
@@ -92,12 +84,15 @@ export default function SubmissionList({ examId, teacherView, user }: { examId: 
     const pending = submissions.filter(s => s.status === 'pending');
     if (pending.length === 0) return alert('沒有待批改的作答');
     
-    if (!confirm(`將對 ${pending.length} 份作答進行 AI 智慧批改，是否繼續？`)) return;
+    if (!confirm(`將對 ${pending.length} 份作答進行 AI 智慧批改。\n為避免 API 超過限額，系統將逐一處理，預計耗時 ${pending.length * 5} 秒。是否繼續？`)) return;
     
     setGradingId('all');
     try {
-      for (const sub of pending) {
+      for (let i = 0; i < pending.length; i++) {
+        const sub = pending[i];
         await autoGradeSubmission(sub);
+        // Small delay between students to respect RPM
+        if (i < pending.length - 1) await sleep(2000); 
       }
       alert('所有待批改作答已處理完成。');
     } catch (err: any) {
@@ -118,18 +113,26 @@ export default function SubmissionList({ examId, teacherView, user }: { examId: 
       const rSnapshot = await getDocs(collection(db, 'exams', examId, 'submissions', submission.id, 'results'));
       const results = rSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
 
+      // Perform Batch AI Grading (ALL questions for this student in ONE call)
+      const gradingResults = await gradeBatch(
+        questions, 
+        results.map(r => ({ questionId: r.questionId, answer: r.studentAnswer }))
+      );
+      
       let totalScore = 0;
       let totalPlanned = 0;
+
+      const batchInstance = writeBatch(db);
 
       for (const res of results) {
         const question = questions.find((q: any) => q.id === res.questionId);
         if (!question) continue;
 
-        // Perform AI Grading
-        const analysis = await gradeAnswer(question, res.studentAnswer);
+        const analysis = gradingResults.find(r => r.questionId === res.questionId);
+        if (!analysis) continue;
         
-        // Update Result doc
-        await updateDoc(doc(db, 'exams', examId, 'submissions', submission.id, 'results', res.id), {
+        // Prepare batch updates
+        batchInstance.update(doc(db, 'exams', examId, 'submissions', submission.id, 'results', res.id), {
           score: analysis.totalScore,
           feedback: analysis.genericFeedback,
           analysis: {
@@ -142,32 +145,33 @@ export default function SubmissionList({ examId, teacherView, user }: { examId: 
         totalPlanned += (question.points || 0);
       }
 
+      await batchInstance.commit();
+
       // 3. Finalize Submission
       await updateDoc(doc(db, 'exams', examId, 'submissions', submission.id), {
         status: 'graded',
         totalScore,
         maxScore: totalPlanned,
         gradedAt: serverTimestamp(),
-        feedback: "AI 批改完成。請確認結果。"
+        feedback: "AI 智慧批改引擎處理完成。"
       });
 
     } catch (err: any) {
       console.error("Grading sub failed", err);
-      // Update submission with error status so the student/teacher knows why it failed
       try {
         await updateDoc(doc(db, 'exams', examId, 'submissions', submission.id), {
           status: 'error',
-          errorExplanation: err.message || 'AI 批改過程發生未知錯誤，請稍後再試。'
+          errorExplanation: err.message || 'AI 批改發生異常，請更換 AI 提供者或稍後再試。'
         });
       } catch (dbErr) {
         console.error("Failed to update error status in DB", dbErr);
       }
-      throw err; // Re-throw so handleGradeAll knows
+      // Only re-throw if it's NOT specific individual error handling
+      if (gradingId === 'all') throw err;
     } finally {
       setGradingId(null);
     }
   };
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
