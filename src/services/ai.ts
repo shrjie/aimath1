@@ -103,7 +103,7 @@ export async function recognizeHandwriting(base64Data: string, mimeType: string 
     if (!keys.groq) throw new Error("尚未設定 Groq API Key");
     try {
       const response = await groq.chat.completions.create({
-        model: "llama-3.2-11b-vision-preview",
+        model: "llama-3.2-90b-vision-preview",
         messages: [
           {
             role: "user",
