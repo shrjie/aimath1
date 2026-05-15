@@ -80,6 +80,7 @@
     "/exams/{examId}": { "schema": "Exam", "description": "考卷列表" },
     "/exams/{examId}/questions/{questionId}": { "schema": "Question", "description": "題目列表" },
     "/exams/{examId}/submissions/{submissionId}": { "schema": "Submission", "description": "作答紀錄" },
-    "/exams/{examId}/submissions/{submissionId}/results/{resultId}": { "schema": "GradingResult", "description": "詳細批改結果" }
+    "/exams/{examId}/submissions/{submissionId}/results/{resultId}": { "schema": "GradingResult", "description": "詳細批改結果" },
+    "/teachers/{userId}": { "schema": "object", "description": "註冊為老師的使用者列表，用於授權存取共享考卷與作答紀錄" }
   }
 }
