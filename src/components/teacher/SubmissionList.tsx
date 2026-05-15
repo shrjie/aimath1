@@ -61,8 +61,8 @@ export default function SubmissionList({ examId, teacherView, user }: { examId: 
     if (submissions.length === 0) return;
     if (!confirm(`確定要刪除考卷下「所有」(${submissions.length}筆) 學生的作答嗎？此動作無法復原。`)) return;
     
+    setGradingId('clearing');
     try {
-      setGradingId('all');
       for (const sub of submissions) {
         const rSnap = await getDocs(collection(db, 'exams', examId, 'submissions', sub.id, 'results'));
         const batchInstance = writeBatch(db);
@@ -129,32 +129,35 @@ export default function SubmissionList({ examId, teacherView, user }: { examId: 
         if (!question) continue;
 
         const analysis = gradingResults.find(r => r.questionId === res.questionId);
-        if (!analysis) continue;
+        if (!analysis) {
+          console.warn(`No analysis found for question ${res.questionId}`);
+          continue;
+        }
         
-        // Prepare batch updates
+        // Prepare batch updates for results
         batchInstance.update(doc(db, 'exams', examId, 'submissions', submission.id, 'results', res.id), {
-          score: analysis.totalScore,
-          feedback: analysis.genericFeedback,
+          score: analysis.totalScore ?? 0,
+          feedback: analysis.genericFeedback || "未提供評語",
           analysis: {
-            pointsByRubric: analysis.items.map(i => i.score),
-            errorsFound: analysis.errorTypes
+            pointsByRubric: analysis.items?.map(i => i.score) || [],
+            errorsFound: analysis.errorTypes || []
           }
         });
 
-        totalScore += analysis.totalScore;
+        totalScore += (analysis.totalScore ?? 0);
         totalPlanned += (question.points || 0);
       }
 
-      await batchInstance.commit();
-
-      // 3. Finalize Submission
-      await updateDoc(doc(db, 'exams', examId, 'submissions', submission.id), {
+      // 3. Finalize Submission IN THE SAME BATCH
+      batchInstance.update(doc(db, 'exams', examId, 'submissions', submission.id), {
         status: 'graded',
         totalScore,
         maxScore: totalPlanned,
         gradedAt: serverTimestamp(),
         feedback: "AI 智慧批改引擎處理完成。"
       });
+
+      await batchInstance.commit();
 
     } catch (err: any) {
       console.error("Grading sub failed", err);
@@ -192,9 +195,11 @@ export default function SubmissionList({ examId, teacherView, user }: { examId: 
           )}
           {teacherView && submissions.length > 0 && (
             <button 
+              disabled={gradingId !== null}
               onClick={handleClearAll}
-              className="text-[10px] sm:text-xs font-black text-red-500 hover:bg-red-50 px-3 py-2.5 rounded-xl transition-all border-2 border-transparent hover:border-red-100"
+              className="text-[10px] sm:text-xs font-black text-red-500 hover:bg-red-50 px-3 py-2.5 rounded-xl transition-all border-2 border-transparent hover:border-red-100 disabled:opacity-50 flex items-center gap-2"
             >
+              {gradingId === 'clearing' && <Clock className="w-3 h-3 animate-spin" />}
               清空
             </button>
           )}
@@ -376,7 +381,7 @@ function ResultDetail({ examId, submissionId }: { examId: string, submissionId: 
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase font-black text-[#5A5A40] tracking-widest block">參考答案</label>
                   <div className="p-3 bg-green-50/50 rounded-xl border border-green-100 min-h-[60px]">
-                    <p className="text-sm text-green-900 font-medium">{q?.answer}</p>
+                    <p className="text-sm text-green-900 font-medium">{q?.standardAnswer || q?.answer}</p>
                   </div>
                 </div>
               </div>
