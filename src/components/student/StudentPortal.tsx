@@ -202,23 +202,35 @@ export default function StudentPortal({ user }: { user: User }) {
                 exit={{ opacity: 0, scale: 0.95 }}
                 className="grid grid-cols-1 md:grid-cols-2 gap-6"
               >
-                {exams.map(exam => (
-                  <motion.button
-                    key={exam.id}
-                    whileHover={{ y: -4 }}
-                    onClick={() => setSelectedExamId(exam.id)}
-                    className="bg-white p-8 rounded-[32px] text-left border border-[#141414]/5 shadow-sm hover:shadow-xl transition-all group"
-                  >
-                    <div className="w-12 h-12 bg-[#F5F5F0] rounded-2xl flex items-center justify-center mb-6 group-hover:bg-[#141414] group-hover:text-white transition-colors">
-                      <ClipboardList className="w-6 h-6" />
-                    </div>
-                    <h3 className="text-xl font-bold mb-2">{exam.title}</h3>
-                    <p className="text-sm text-[#5A5A40] line-clamp-2">{exam.description || '無描述'}</p>
-                    <div className="mt-8 flex items-center gap-2 text-xs font-bold text-[#141414] group-hover:translate-x-2 transition-transform">
-                      進入考場 <ChevronRight className="w-4 h-4" />
-                    </div>
-                  </motion.button>
-                ))}
+                {exams.length === 0 ? (
+                  <div className="col-span-full text-center py-20 bg-white/40 rounded-[32px] border-2 border-dashed border-[#141414]/10">
+                    <ClipboardList className="w-12 h-12 text-[#5A5A40]/20 mx-auto mb-4" />
+                    <p className="text-[#5A5A40] italic">
+                      目前沒有可用的考卷。<br/>
+                      <span className="text-[10px] mt-2 block opacity-70">
+                        (獨立模式：您只能看到由您自己帳號建立的考卷)
+                      </span>
+                    </p>
+                  </div>
+                ) : (
+                  exams.map(exam => (
+                    <motion.button
+                      key={exam.id}
+                      whileHover={{ y: -4 }}
+                      onClick={() => setSelectedExamId(exam.id)}
+                      className="bg-white p-8 rounded-[32px] text-left border border-[#141414]/5 shadow-sm hover:shadow-xl transition-all group"
+                    >
+                      <div className="w-12 h-12 bg-[#F5F5F0] rounded-2xl flex items-center justify-center mb-6 group-hover:bg-[#141414] group-hover:text-white transition-colors">
+                        <ClipboardList className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-xl font-bold mb-2">{exam.title}</h3>
+                      <p className="text-sm text-[#5A5A40] line-clamp-2">{exam.description || '無描述'}</p>
+                      <div className="mt-8 flex items-center gap-2 text-xs font-bold text-[#141414] group-hover:translate-x-2 transition-transform">
+                        進入考場 <ChevronRight className="w-4 h-4" />
+                      </div>
+                    </motion.button>
+                  ))
+                )}
               </motion.div>
             ) : (
               <motion.div 
