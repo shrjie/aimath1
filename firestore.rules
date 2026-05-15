@@ -22,14 +22,14 @@ service cloud.firestore {
     function existing() {
       return resource.data;
     }
-    function isTeacher(examId) {
+    function isOwner(examId) {
       return isSignedIn() && get(/databases/$(database)/documents/exams/$(examId)).data.teacherId == request.auth.uid;
     }
 
     // --- Exams ---
     function isValidExam(data) {
       return data.title is string && data.title.size() > 0 && data.title.size() <= 200
-          && data.teacherId == request.auth.uid
+          && data.teacherId == (resource == null ? request.auth.uid : resource.data.teacherId)
           && (data.get('description', '') is string && data.get('description', '').size() <= 1000)
           && (data.get('createdAt', request.time) == request.time || data.get('createdAt', request.time) is timestamp);
     }
@@ -39,19 +39,15 @@ service cloud.firestore {
       allow get: if isSignedIn();
       
       allow create: if isVerified() && isValidExam(incoming()) && isValidId(examId);
-      allow update: if isTeacher(examId) && isValidExam(incoming())
+      allow update: if isOwner(examId) && isValidExam(incoming())
                    && incoming().teacherId == existing().teacherId
                    && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'updatedAt']);
-      allow delete: if isTeacher(examId);
+      allow delete: if isOwner(examId);
 
-      // Recursive match for all sub-data under an exam to simplify teacher permissions
-      match /{allData=**} {
-        allow read, write: if isTeacher(examId);
-      }
-
-      // --- Questions (Teachers already handled by allData, adding Student read) ---
+      // --- Questions ---
       match /questions/{questionId} {
         allow read: if isSignedIn();
+        allow write: if isOwner(examId);
       }
 
       // --- Submissions ---
@@ -64,13 +60,16 @@ service cloud.firestore {
       match /submissions/{submissionId} {
         allow create: if isVerified() && isValidSubmission(incoming()) && isValidId(submissionId)
                      && incoming().status == 'pending'
-                     // Only allow submitting for self OR teacher adding it
-                     && (incoming().studentId == request.auth.uid || isTeacher(examId));
+                     && (incoming().studentId == request.auth.uid || isOwner(examId));
         
-        allow read: if isVerified() && (resource.data.studentId == request.auth.uid);
+        allow read: if isVerified() && (resource.data.studentId == request.auth.uid || isOwner(examId));
         
         match /results/{resultId} {
-          allow read: if isVerified() && (get(/databases/$(database)/documents/exams/$(examId)/submissions/$(submissionId)).data.studentId == request.auth.uid);
+          allow read: if isVerified() && (
+            get(/databases/$(database)/documents/exams/$(examId)/submissions/$(submissionId)).data.studentId == request.auth.uid || 
+            isOwner(examId)
+          );
+          allow write: if isOwner(examId);
         }
       }
     }
