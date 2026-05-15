@@ -4,8 +4,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import { auth, signInAnonymously } from './lib/firebase';
+import { auth, signInAnonymously, db } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Clock,
@@ -13,12 +14,13 @@ import {
   AlertCircle
 } from 'lucide-react';
 import TeacherDashboard from './components/teacher/TeacherDashboard';
+import StudentPortal from './components/student/StudentPortal';
 import { cn } from './lib/utils';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view] = useState<'teacher'>('teacher');
+  const [view, setView] = useState<'teacher' | 'student'>('teacher');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
@@ -86,23 +88,56 @@ export default function App() {
             <span className="text-[10px] text-[#5A5A40] uppercase tracking-[0.2em]">Intelligent Grading</span>
           </div>
         </div>
-        <div className="hidden sm:flex items-center gap-4">
-          <div className="px-3 py-1 bg-[#E4E3E0] rounded-full text-[10px] font-bold text-[#5A5A40] uppercase tracking-wider">
-            Teacher Mode
+        <div className="flex items-center gap-4">
+          <div className="flex bg-[#F5F5F0] p-1 rounded-xl border border-[#141414]/5">
+            <button 
+              onClick={() => setView('teacher')}
+              className={cn(
+                "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                view === 'teacher' ? "bg-[#141414] text-white shadow-lg" : "text-[#5A5A40] hover:bg-[#E4E3E0]"
+              )}
+            >
+              老師視角
+            </button>
+            <button 
+              onClick={() => setView('student')}
+              className={cn(
+                "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                view === 'student' ? "bg-[#141414] text-white shadow-lg" : "text-[#5A5A40] hover:bg-[#E4E3E0]"
+              )}
+            >
+              學生視角
+            </button>
+          </div>
+          <div className="hidden sm:block px-3 py-1 bg-[#E4E3E0] rounded-full text-[10px] font-bold text-[#5A5A40] uppercase tracking-wider">
+            {view === 'teacher' ? 'Teacher Mode' : 'Student Mode'}
           </div>
         </div>
       </nav>
 
       <main className="flex-grow pt-8 pb-12 px-4 sm:px-6 max-w-7xl mx-auto w-full">
         <AnimatePresence mode="wait">
-          <motion.div 
-            key="teacher"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <TeacherDashboard user={user} />
-          </motion.div>
+          {view === 'teacher' ? (
+            <motion.div 
+              key="teacher"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <TeacherDashboard user={user} />
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="student"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <StudentPortal user={user} />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
