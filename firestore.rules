@@ -54,7 +54,7 @@ service cloud.firestore {
       function isValidSubmission(data) {
         return data.examId == examId
             && data.studentName is string && data.studentName.size() > 0 && data.studentName.size() <= 100
-            && data.status in ['pending', 'graded'];
+            && data.status in ['pending', 'graded', 'error'];
       }
 
       match /submissions/{submissionId} {
@@ -63,6 +63,12 @@ service cloud.firestore {
                      && (incoming().studentId == request.auth.uid || isOwner(examId));
         
         allow read: if isVerified() && (resource.data.studentId == request.auth.uid || isOwner(examId));
+        
+        allow update: if isOwner(examId) 
+                     && (incoming().get('status', existing().status) in ['pending', 'graded', 'error'])
+                     && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'totalScore', 'maxScore', 'gradedAt', 'feedback', 'errorExplanation']);
+        
+        allow delete: if isOwner(examId);
         
         match /results/{resultId} {
           allow read: if isVerified() && (
