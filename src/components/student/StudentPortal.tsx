@@ -29,14 +29,18 @@ export default function StudentPortal({ user }: { user: User }) {
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
-    // List all available exams
-    const q = query(collection(db, 'exams'), orderBy('createdAt', 'desc'));
+    // List only exams created by this user (Independent Teacher Use)
+    const q = query(
+      collection(db, 'exams'), 
+      where('teacherId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setExams(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Exam)));
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'exams'));
 
     return unsubscribe;
-  }, []);
+  }, [user.uid]);
 
   useEffect(() => {
     if (activeTab === 'history') {
@@ -235,22 +239,34 @@ export default function StudentPortal({ user }: { user: User }) {
                       <div className="bg-white p-6 rounded-[32px] border border-[#141414]/5 shadow-sm flex items-center justify-between relative z-10">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 bg-[#F5F5F0] rounded-2xl flex items-center justify-center text-[#141414]">
-                            <CheckCircle2 className={cn("w-6 h-6", sub.status === 'graded' ? "text-green-500" : "text-yellow-500")} />
+                            <CheckCircle2 className={cn(
+                              "w-6 h-6", 
+                              sub.status === 'graded' ? "text-green-500" : 
+                              sub.status === 'error' ? "text-red-500" : "text-yellow-500"
+                            )} />
                           </div>
                           <div>
                             <h4 className="font-bold text-[#141414]">{sub.examTitle}</h4>
-                            <p className="text-xs text-[#5A5A40]">
-                              送出時間：{sub.submittedAt?.toDate().toLocaleString()}
-                            </p>
+                            <div className="flex flex-col">
+                              <p className="text-xs text-[#5A5A40]">
+                                送出時間：{sub.submittedAt?.toDate().toLocaleString()}
+                              </p>
+                              {sub.status === 'error' && (
+                                <p className="text-[10px] text-red-500 font-bold mt-0.5">
+                                  ⚠️ 批改失敗：{sub.errorExplanation || '未知錯誤'}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="text-right flex items-center gap-4">
                           <div className="flex flex-col items-end mr-2">
                             <span className={cn(
                               "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-block mb-1",
-                              sub.status === 'graded' ? "bg-green-100 text-green-600" : "bg-yellow-100 text-yellow-600"
+                              sub.status === 'graded' ? "bg-green-100 text-green-600" : 
+                              sub.status === 'error' ? "bg-red-100 text-red-600" : "bg-yellow-100 text-yellow-600"
                             )}>
-                              {sub.status === 'graded' ? '已批改' : '批改中'}
+                              {sub.status === 'graded' ? '已批改' : sub.status === 'error' ? '批改失敗' : '批改中'}
                             </span>
                             {sub.status === 'graded' && (
                               <div className="text-right">
