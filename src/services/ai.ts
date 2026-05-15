@@ -99,11 +99,14 @@ export async function recognizeHandwriting(base64Data: string, mimeType: string 
   const base64Content = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
   const promptText = "這是學生的作答內容，請精確辨識其中的文字內容與運算過程。只需輸出辨識出的文字內容。如果辨識不出任何內容，請回覆「[無法辨識]」。";
 
-  if (provider === 'groq') {
-    if (!keys.groq) throw new Error("尚未設定 Groq API Key");
+  // OCR currently prefers Gemini because Groq Llama 3.2 Vision models have been decommissioned
+  // We only use Groq if Gemini key is missing or if explicitly configured and working
+  
+  if (provider === 'groq' && keys.groq) {
     try {
+      // Trying the newest possible vision model if Groq is preferred
       const response = await groq.chat.completions.create({
-        model: "llama-3.2-90b-vision-preview",
+        model: "llama-3.2-11b-vision-instant", 
         messages: [
           {
             role: "user",
@@ -116,27 +119,36 @@ export async function recognizeHandwriting(base64Data: string, mimeType: string 
       });
       return response.choices[0]?.message?.content || "";
     } catch (err: any) {
-      console.error("Groq OCR Error:", err);
-      throw new Error(`Groq 辨識失敗：${err.message}`);
+      console.error("Groq OCR Error (Attempting Fallback to Gemini):", err);
+      // Fallback to Gemini if Groq fails
+      if (!keys.gemini) {
+        throw new Error(`Groq 辨識失敗且無 Gemini 備援：${err.message}`);
+      }
     }
-  } else {
-    // Gemini
-    if (!keys.gemini) throw new Error("尚未設定 Gemini API Key");
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{
-          parts: [
-            { text: promptText },
-            { inlineData: { data: base64Content, mimeType: mimeType } }
-          ]
-        }]
-      });
-      return response.text || "";
-    } catch (err: any) {
-      console.error("Gemini OCR Error:", err);
-      throw new Error(`Gemini 辨識失敗：${err.message}`);
+  }
+
+  // Gemini (Primary for OCR now)
+  if (!keys.gemini) {
+    throw new Error("尚未設定 Gemini API Key，OCR 功能目前需要 Gemini 支援。");
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [{
+        parts: [
+          { text: promptText },
+          { inlineData: { data: base64Content, mimeType: mimeType } }
+        ]
+      }]
+    });
+    return response.text || "";
+  } catch (err: any) {
+    console.error("Gemini OCR Error:", err);
+    if (err.message?.includes("Quota exceeded")) {
+      throw new Error("Gemini API 配額已達上限，請稍後再試或檢查 API Key 狀態。");
     }
+    throw new Error(`辨識失敗：${err.message}`);
   }
 }
 
