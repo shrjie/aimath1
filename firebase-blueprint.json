@@ -45,9 +45,10 @@
         "examId": { "type": "string" },
         "studentName": { "type": "string" },
         "studentId": { "type": "string" },
-        "status": { "enum": ["pending", "graded"] },
+        "status": { "enum": ["pending", "graded", "error"] },
         "totalScore": { "type": "number" },
         "maxScore": { "type": "number" },
+        "errorExplanation": { "type": "string" },
         "submittedAt": { "type": "string", "format": "date-time" },
         "gradedAt": { "type": "string", "format": "date-time" },
         "feedback": { "type": "string" }
