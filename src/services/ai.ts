@@ -5,7 +5,7 @@ export type AIProvider = 'gemini' | 'groq';
 
 let currentApiKey = localStorage.getItem('gemini_api_key') || process.env.GEMINI_API_KEY || '';
 let groqApiKey = localStorage.getItem('groq_api_key') || '';
-let currentProvider: AIProvider = (localStorage.getItem('ai_provider') as AIProvider) || 'gemini';
+let currentProvider: AIProvider = (localStorage.getItem('ai_provider') as AIProvider) || 'groq';
 
 let ai = new GoogleGenAI({ apiKey: currentApiKey });
 let groq = new Groq({ apiKey: groqApiKey, dangerouslyAllowBrowser: true });
@@ -93,9 +93,38 @@ export interface GradingAnalysis {
 }
 
 export async function recognizeHandwriting(base64Data: string, mimeType: string = "image/jpeg"): Promise<string> {
-  // OCR is still best on Gemini, groq doesn't support vision for free as reliably/easily yet
-  if (!currentApiKey) {
-    throw new Error("尚未設定 Gemini API Key，辨識功能目前僅支援 Gemini。");
+  const provider = getProvider();
+  const keys = getApiKeys();
+
+  // If using Groq or if Gemini key is missing but Groq is available
+  if (provider === 'groq' || (!keys.gemini && keys.groq)) {
+    if (!keys.groq) throw new Error("尚未設定 Groq API Key");
+    
+    try {
+      const base64Content = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+      const response = await groq.chat.completions.create({
+        model: "llama-3.2-11b-vision-preview",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "這是學生的作答內容，請精確辨識其中的文字內容與運算過程。只需輸出辨識出的文字內容。如果辨識不出任何內容，請回覆「[無法辨識]」。" },
+              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Content}` } }
+            ]
+          }
+        ]
+      });
+      return response.choices[0]?.message?.content || "";
+    } catch (err: any) {
+      console.error("Groq OCR Error:", err);
+      // Fallback to Gemini if Groq fails and Gemini key exists
+      if (!keys.gemini) throw new Error(`辨識失敗 (Groq): ${err.message}`);
+    }
+  }
+
+  // Gemini Fallback / Primary
+  if (!keys.gemini) {
+    throw new Error("尚未設定 API Key，辨識功能需要 Gemini 或 Groq (Vision) 授權。");
   }
   try {
     const base64Content = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
@@ -110,7 +139,7 @@ export async function recognizeHandwriting(base64Data: string, mimeType: string 
     });
     return response.text || "";
   } catch (err: any) {
-    throw new Error(`辨識失敗：${err.message || '請檢查 Gemini API 設定'}`);
+    throw new Error(`辨識失敗：${err.message || '請檢查 API 設定'}`);
   }
 }
 
