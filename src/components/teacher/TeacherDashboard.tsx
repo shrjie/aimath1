@@ -43,11 +43,13 @@ export default function TeacherDashboard({ user }: { user: User }) {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm('確定要刪除這份考卷嗎？此動作無法復原。')) {
+    if (window.confirm('確定要刪除這份考卷嗎？此動作無法復原。')) {
       try {
         await deleteDoc(doc(db, 'exams', id));
         if (selectedExamId === id) setSelectedExamId(null);
-      } catch (err) {
+      } catch (err: any) {
+        console.error("Delete failed:", err);
+        alert("刪除失敗：" + (err.message || "權限不足"));
         handleFirestoreError(err, OperationType.DELETE, `exams/${id}`);
       }
     }
@@ -111,10 +113,18 @@ export default function TeacherDashboard({ user }: { user: User }) {
             </div>
           ) : (
             exams.map(exam => (
-              <button
+              <div
                 key={exam.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => { setSelectedExamId(exam.id); setActiveTab('submissions'); }}
-                className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-300 group overflow-hidden relative ${
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setSelectedExamId(exam.id);
+                    setActiveTab('submissions');
+                  }
+                }}
+                className={`cursor-pointer w-full text-left p-4 rounded-2xl border-2 transition-all duration-300 group overflow-hidden relative ${
                   selectedExamId === exam.id 
                     ? "bg-white border-[#141414] shadow-[4px_4px_0px_0px_rgba(20,20,20,1)] -translate-x-1 -translate-y-1" 
                     : "bg-white/60 border-transparent hover:bg-white hover:border-[#141414]/20 hover:shadow-lg"
@@ -126,28 +136,32 @@ export default function TeacherDashboard({ user }: { user: User }) {
                 <div className="flex justify-between items-start mb-1 relative z-10">
                   <h3 className="font-bold text-[#141414] line-clamp-1 pr-4">{exam.title}</h3>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      disabled={loadingEdit === exam.id}
-                      onClick={(e) => handleEdit(exam, e)}
-                      className="p-1 text-[#5A5A40]/40 hover:text-blue-600 transition-colors"
-                      title="編輯給分標準"
-                    >
-                      {loadingEdit === exam.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pencil className="w-3.5 h-3.5" />}
-                    </button>
-                    <button 
-                      onClick={(e) => handleDelete(exam.id, e)}
-                      className="p-1 text-[#5A5A40]/40 hover:text-red-500 transition-colors"
-                      title="刪除"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {exam.teacherId === user.uid && (
+                      <>
+                        <button 
+                          disabled={loadingEdit === exam.id}
+                          onClick={(e) => handleEdit(exam, e)}
+                          className="p-1 text-[#5A5A40]/40 hover:text-blue-600 transition-colors"
+                          title="編輯給分標準"
+                        >
+                          {loadingEdit === exam.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pencil className="w-3.5 h-3.5" />}
+                        </button>
+                        <button 
+                          onClick={(e) => handleDelete(exam.id, e)}
+                          className="p-1 text-[#5A5A40]/40 hover:text-red-500 transition-colors"
+                          title="刪除"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 relative z-10">
                   <FileText className="w-3 h-3 text-[#5A5A40]/40" />
                   <p className="text-[10px] text-[#5A5A40] font-bold uppercase tracking-wider">{formatDate(exam.createdAt)}</p>
                 </div>
-              </button>
+              </div>
             ))
           )}
         </div>
