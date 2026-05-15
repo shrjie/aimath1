@@ -35,12 +35,12 @@ service cloud.firestore {
     }
 
     match /exams/{examId} {
-      allow list: if isSignedIn();
+      allow list: if isSignedIn() && (resource == null || resource.data.teacherId == request.auth.uid);
       allow get: if isSignedIn();
       
       allow create: if isVerified() && isValidExam(incoming()) && isValidId(examId);
       allow update: if isOwner(examId) && isValidExam(incoming())
-                   && incoming().teacherId == existing().teacherId
+                   && (incoming().teacherId == (existing().get('teacherId', request.auth.uid)))
                    && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'updatedAt']);
       allow delete: if isOwner(examId);
 
