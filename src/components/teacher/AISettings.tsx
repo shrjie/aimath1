@@ -76,18 +76,6 @@ export default function AISettings({ onClose }: AISettingsProps) {
              </label>
              <div className="grid grid-cols-2 gap-3">
                 <button 
-                  onClick={() => setLocalProvider('gemini')}
-                  className={cn(
-                    "p-3 rounded-xl border-2 transition-all text-xs font-bold flex flex-col items-center gap-1",
-                    provider === 'gemini' 
-                      ? "bg-[#141414] text-white border-[#141414] shadow-lg" 
-                      : "bg-white border-[#141414]/10 text-[#5A5A40] hover:border-[#141414]/30"
-                  )}
-                >
-                  <span>Gemini (Google)</span>
-                  <span className="text-[8px] opacity-70">支援 OCR 與 批改</span>
-                </button>
-                <button 
                   onClick={() => setLocalProvider('groq')}
                   className={cn(
                     "p-3 rounded-xl border-2 transition-all text-xs font-bold flex flex-col items-center gap-1",
@@ -99,14 +87,43 @@ export default function AISettings({ onClose }: AISettingsProps) {
                   <span>Groq (Llama 3)</span>
                   <span className="text-[8px] opacity-70">速度極快 專注批改</span>
                 </button>
+                <button 
+                  onClick={() => setLocalProvider('gemini')}
+                  className={cn(
+                    "p-3 rounded-xl border-2 transition-all text-xs font-bold flex flex-col items-center gap-1",
+                    provider === 'gemini' 
+                      ? "bg-[#141414] text-white border-[#141414] shadow-lg" 
+                      : "bg-white border-[#141414]/10 text-[#5A5A40] hover:border-[#141414]/30"
+                  )}
+                >
+                  <span>Gemini (Google)</span>
+                  <span className="text-[8px] opacity-70">支援 OCR 與 批改</span>
+                </button>
              </div>
           </div>
 
           <div className="space-y-4">
             <div>
               <label className="block text-[10px] font-black text-[#5A5A40] mb-2 uppercase tracking-widest flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                Groq API Key (主要批改方案)
+              </label>
+              <input
+                type="password"
+                value={groqKey}
+                onChange={(e) => setGroqKey(e.target.value)}
+                placeholder="輸入您的 Groq API Key..."
+                className="w-full h-10 px-4 bg-[#F5F5F0] border-2 border-[#141414]/20 rounded-xl focus:border-[#141414] focus:ring-0 focus:outline-none transition-all font-mono text-xs"
+              />
+              <p className="mt-1 text-[9px] text-blue-500 italic">
+                Groq 的 Llama 3 速度極快且有免費額度，現在作為系統預設批改引擎。
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-[#5A5A40] mb-2 uppercase tracking-widest flex items-center gap-2">
                 <Key className="w-3.5 h-3.5 text-gray-500" />
-                Gemini API Key
+                Gemini API Key (備用方案)
               </label>
               <input
                 type="password"
@@ -115,23 +132,6 @@ export default function AISettings({ onClose }: AISettingsProps) {
                 placeholder="輸入您的 Gemini API Key..."
                 className="w-full h-10 px-4 bg-[#F5F5F0] border-2 border-[#141414]/10 rounded-xl focus:border-[#141414] focus:ring-0 focus:outline-none transition-all font-mono text-xs"
               />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-black text-[#5A5A40] mb-2 uppercase tracking-widest flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-                Groq API Key (免費替代方案)
-              </label>
-              <input
-                type="password"
-                value={groqKey}
-                onChange={(e) => setGroqKey(e.target.value)}
-                placeholder="輸入您的 Groq API Key..."
-                className="w-full h-10 px-4 bg-[#F5F5F0] border-2 border-[#141414]/10 rounded-xl focus:border-[#141414] focus:ring-0 focus:outline-none transition-all font-mono text-xs"
-              />
-              <p className="mt-1 text-[9px] text-blue-500 italic">
-                Groq 的 Llama 3-70B 速度極快且有慷慨的免費額度，適合處理大量批改。
-              </p>
             </div>
 
             <div className="flex gap-3 pt-2">
@@ -190,10 +190,10 @@ export default function AISettings({ onClose }: AISettingsProps) {
              </h3>
              <ul className="text-[10px] text-[#5A5A40] space-y-1.5 list-disc pl-4">
                <li>
-                 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="referrer" className="text-blue-600 font-bold hover:underline">Google AI Studio</a>: 提供 Gemini 模型。
+                 <a href="https://console.groq.com/keys" target="_blank" rel="referrer" className="text-orange-600 font-bold hover:underline">Groq Console</a>: (推薦) 提供快速且免費的批改服務。
                </li>
                <li>
-                 <a href="https://console.groq.com/keys" target="_blank" rel="referrer" className="text-orange-600 font-bold hover:underline">Groq Console</a>: 提供快速的免費 Llama 3 服務。
+                 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="referrer" className="text-blue-600 font-bold hover:underline">Google AI Studio</a>: 提供 Gemini 模型，作為備用 OCR 辨識。
                </li>
              </ul>
           </div>
