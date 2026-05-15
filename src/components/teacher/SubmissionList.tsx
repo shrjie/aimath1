@@ -11,12 +11,13 @@ interface Submission {
   id: string;
   studentName: string;
   studentId: string;
-  status: 'pending' | 'graded';
+  status: 'pending' | 'graded' | 'error';
   totalScore: number;
   maxScore: number;
   submittedAt: any;
   gradedAt?: any;
   feedback?: string;
+  errorExplanation?: string;
 }
 
 export default function SubmissionList({ examId, teacherView, user }: { examId: string, teacherView?: boolean, user?: any }) {
@@ -152,7 +153,15 @@ export default function SubmissionList({ examId, teacherView, user }: { examId: 
 
     } catch (err: any) {
       console.error("Grading sub failed", err);
-      // Don't alert here to not break the loop in handleGradeAll, but log and maybe set error status?
+      // Update submission with error status so the student/teacher knows why it failed
+      try {
+        await updateDoc(doc(db, 'exams', examId, 'submissions', submission.id), {
+          status: 'error',
+          errorExplanation: err.message || 'AI 批改過程發生未知錯誤，請稍後再試。'
+        });
+      } catch (dbErr) {
+        console.error("Failed to update error status in DB", dbErr);
+      }
       throw err; // Re-throw so handleGradeAll knows
     } finally {
       setGradingId(null);
@@ -249,6 +258,16 @@ export default function SubmissionList({ examId, teacherView, user }: { examId: 
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           <span>{sub.totalScore} / {sub.maxScore}</span>
                         </div>
+                      </div>
+                    ) : sub.status === 'error' ? (
+                      <div className="flex flex-col items-end">
+                         <div className="flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-500 rounded-full text-[10px] font-black border border-red-100 uppercase tracking-wider">
+                          <AlertCircle className="w-3 h-3" />
+                          <span>批改失敗</span>
+                        </div>
+                        <span className="text-[9px] text-red-400 font-bold mt-1 line-clamp-1 max-w-[120px]" title={sub.errorExplanation}>
+                          {sub.errorExplanation}
+                        </span>
                       </div>
                     ) : (
                       <div className="flex flex-col items-end">
