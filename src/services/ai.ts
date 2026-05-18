@@ -3,22 +3,34 @@ import Groq from "groq-sdk";
 
 export type AIProvider = 'gemini' | 'groq';
 
-let currentApiKey = localStorage.getItem('gemini_api_key') || process.env.GEMINI_API_KEY || '';
+let geminiKeys: string[] = JSON.parse(localStorage.getItem('gemini_api_keys') || '[]') || [];
+// Fallback for single key from previous version
+if (geminiKeys.length === 0) {
+  const singleKey = localStorage.getItem('gemini_api_key') || process.env.GEMINI_API_KEY || '';
+  if (singleKey) geminiKeys = [singleKey];
+}
+let currentGeminiKeyIndex = 0;
+
 let groqApiKey = localStorage.getItem('groq_api_key') || '';
 let currentProvider: AIProvider = (localStorage.getItem('ai_provider') as AIProvider) || 'groq';
 
-let ai = new GoogleGenAI({ apiKey: currentApiKey });
+let ai = new GoogleGenAI({ apiKey: geminiKeys[currentGeminiKeyIndex] || '' });
 let groq = new Groq({ apiKey: groqApiKey, dangerouslyAllowBrowser: true });
 
-export function setApiKey(key: string, provider: AIProvider = 'gemini') {
+export function setApiKey(key: string | string[], provider: AIProvider = 'gemini') {
   if (provider === 'gemini') {
-    currentApiKey = key;
-    localStorage.setItem('gemini_api_key', key);
-    ai = new GoogleGenAI({ apiKey: key });
+    const keys = Array.isArray(key) ? key.filter(k => k.trim() !== '') : [key].filter(k => k.trim() !== '');
+    geminiKeys = keys;
+    localStorage.setItem('gemini_api_keys', JSON.stringify(keys));
+    currentGeminiKeyIndex = 0;
+    if (keys.length > 0) {
+      ai = new GoogleGenAI({ apiKey: keys[0] });
+    }
   } else {
-    groqApiKey = key;
-    localStorage.setItem('groq_api_key', key);
-    groq = new Groq({ apiKey: key, dangerouslyAllowBrowser: true });
+    const keyStr = Array.isArray(key) ? key[0] : key;
+    groqApiKey = keyStr;
+    localStorage.setItem('groq_api_key', keyStr);
+    groq = new Groq({ apiKey: keyStr, dangerouslyAllowBrowser: true });
   }
 }
 
@@ -33,9 +45,42 @@ export function getProvider() {
 
 export function getApiKeys() {
   return {
-    gemini: currentApiKey,
+    gemini: geminiKeys[0] || '', // primary key
+    geminiAll: geminiKeys,
     groq: groqApiKey
   };
+}
+
+async function rotateGeminiKey() {
+  if (geminiKeys.length <= 1) return false;
+  currentGeminiKeyIndex = (currentGeminiKeyIndex + 1) % geminiKeys.length;
+  console.log(`Rotating Gemini API key to index ${currentGeminiKeyIndex}`);
+  ai = new GoogleGenAI({ apiKey: geminiKeys[currentGeminiKeyIndex] });
+  return true;
+}
+
+async function withGeminiRetry<T>(fn: () => Promise<T>): Promise<T> {
+  let attempts = 0;
+  const maxAttempts = geminiKeys.length > 0 ? geminiKeys.length : 1;
+
+  while (attempts < maxAttempts) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const isQuotaError = err.message?.includes("Quota exceeded") || 
+                          err.status === 429 || 
+                          err.message?.includes("429");
+      
+      if (isQuotaError && attempts < maxAttempts - 1) {
+        attempts++;
+        const rotated = await rotateGeminiKey();
+        if (!rotated) throw err;
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("Gemini API call failed after multiple attempts.");
 }
 
 export async function testConnection(provider: AIProvider = currentProvider): Promise<{ success: boolean; message: string }> {
@@ -45,11 +90,11 @@ export async function testConnection(provider: AIProvider = currentProvider): Pr
 
   try {
     if (provider === 'gemini') {
-      const response = await ai.models.generateContent({
+      const response = await withGeminiRetry(() => ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: "hi",
         config: { maxOutputTokens: 5 }
-      });
+      }));
       return response.text ? { success: true, message: "Gemini 連線成功！" } : { success: false, message: "連線異常" };
     } else {
       const chatCompletion = await groq.chat.completions.create({
@@ -133,7 +178,7 @@ export async function recognizeHandwriting(base64Data: string, mimeType: string 
   }
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await withGeminiRetry(() => ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [{
         parts: [
@@ -141,12 +186,12 @@ export async function recognizeHandwriting(base64Data: string, mimeType: string 
           { inlineData: { data: base64Content, mimeType: mimeType } }
         ]
       }]
-    });
+    }));
     return response.text || "";
   } catch (err: any) {
     console.error("Gemini OCR Error:", err);
     if (err.message?.includes("Quota exceeded")) {
-      throw new Error("Gemini API 配額已達上限，請稍後再試或檢查 API Key 狀態。");
+      throw new Error("所有 Gemini API 配額已達上限，請稍後再試或檢查 API Key 狀態。");
     }
     throw new Error(`辨識失敗：${err.message}`);
   }
@@ -201,7 +246,7 @@ ${questions.map((q, idx) => {
 
   try {
     if (provider === 'gemini') {
-      const response = await ai.models.generateContent({
+      const response = await withGeminiRetry(() => ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt,
         config: {
@@ -232,7 +277,7 @@ ${questions.map((q, idx) => {
             }
           }
         }
-      });
+      }));
       return JSON.parse(response.text || "[]");
     } else {
       const completion = await groq.chat.completions.create({
